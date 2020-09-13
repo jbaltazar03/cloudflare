@@ -9,7 +9,7 @@ cf = cloudflare.Get()
 # cf.organizations()
 # cf.zones()
 
-# cf.ssl_count()
-# cf.argo_limit()
-# cf.dns_zones()
+cf.ssl_count()
+cf.argo_limit()
+cf.dns_zones()
 

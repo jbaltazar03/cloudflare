@@ -85,7 +85,7 @@ class Get(Cloudflare):
             page = 1
 
             with open("io/zone_ids.csv", "w") as f:
-                fieldnames = ['cf_id', 'name']
+                fieldnames = ['cf_id', 'app_name']
                 csvwriter = csv.DictWriter(f, fieldnames=fieldnames)
                 csvwriter.writeheader()
                 while True:
@@ -99,7 +99,7 @@ class Get(Cloudflare):
                     for zone in zones:
                         # print(zone['id'] + ", " + zone['name'])
                         zones_id.append(zone['id'])
-                        csvwriter.writerow({'cf_id':zone['id'], 'name': zone['name']})
+                        csvwriter.writerow({'cf_id':zone['id'], 'app_name': zone['name']})
                     page += 1
 
                 else:
@@ -111,8 +111,10 @@ class Get(Cloudflare):
         
         return zones_id
 
-
     def ssl_count(self):
+        # if not self._auth:
+        #     self._verify_token()
+
         zones_id = self.zones()
         headers = {'Accept': self.content_type, 'Authorization': f'Bearer {self._token}'}
         ssl_count = []
@@ -120,16 +122,16 @@ class Get(Cloudflare):
         for zone_id in zones_id:
             url = f"{self.host}{self.api_url}/zones/{zone_id}/ssl/certificate_packs"
             r = requests.get(url, headers=headers)
-            print(zone_id)
             ssl_count.append(r.json()['result_info']['total_count'])
 
         df = pd.read_csv('io/zone_ids.csv')
         df['ssl_count'] = ssl_count
         df.to_csv('output.csv', index=False, mode="w")
-
-        return
-        
+  
     def argo_limit(self):
+        # if not self._auth:
+        #     self._verify_token()
+
         zones_id = self.zones()
         headers = {'Accept': self.content_type, 'Authorization': f'Bearer {self._token}'}
         argo_count = []
@@ -137,23 +139,26 @@ class Get(Cloudflare):
         for zone_id in zones_id:
             url = f"{self.host}{self.api_url}/zones/{zone_id}/rate_limits"
             r = requests.get(url, headers=headers)
-            print(zone_id)
             argo_count.append(r.json()['result_info']['total_count'])
 
         df = pd.read_csv('./output.csv')
         df['argo_count'] = argo_count
         df.to_csv('./output.csv', index=False, mode="w")
             
-
     def dns_zones(self):
-        if not self._auth:
-            self._verify_token()
+        # if not self._auth:
+        #     self._verify_token()
 
-        # zones_id = self.zones()
+        zones_id = self.zones()
         headers = {'Accept': self.content_type, 'Authorization': f'Bearer {self._token}'}
-        # url = f'{self.host}{self.api_url}/zones/{zone_id}/dns_records'
+        dns_list = []
 
-        r = requests.get(url, headers=headers)
-        dns_records = r.json()['result']
-        for dns in dns_records:
-            dns['name']
+        for zone in zones_id:
+            url = f'{self.host}{self.api_url}/zones/{zone}/dns_records'
+            r = requests.get(url, headers=headers)
+            result = r.json()
+            dns_list.append([i['name'] for i in result['result']])
+
+        df = pd.read_csv('./output.csv')
+        df['dns_zones'] = dns_list
+        df.to_csv('./output.csv', index=False, mode="w")
