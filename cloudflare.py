@@ -122,13 +122,14 @@ class Get(Cloudflare):
         for zone_id in zones_id:
             url = f"{self.host}{self.api_url}/zones/{zone_id}/ssl/certificate_packs"
             r = requests.get(url, headers=headers)
+            print(r.json()['result_info']['total_count'])
             ssl_count.append(r.json()['result_info']['total_count'])
 
         df = pd.read_csv('io/zone_ids.csv')
         df['ssl_count'] = ssl_count
         df.to_csv('output.csv', index=False, mode="w")
-  
-    def argo_limit(self):
+
+    def rate_limit(self):
         # if not self._auth:
         #     self._verify_token()
 
@@ -139,12 +140,55 @@ class Get(Cloudflare):
         for zone_id in zones_id:
             url = f"{self.host}{self.api_url}/zones/{zone_id}/rate_limits"
             r = requests.get(url, headers=headers)
+            print(r.json()['result'])
             argo_count.append(r.json()['result_info']['total_count'])
 
         df = pd.read_csv('./output.csv')
         df['argo_count'] = argo_count
         df.to_csv('./output.csv', index=False, mode="w")
-            
+
+    def custom_ssl_count(self):
+        # if not self._auth:
+        #     self._verify_token()
+
+        zones_id = self.zones()
+        headers = {'Accept': self.content_type, 'Authorization': f'Bearer {self._token}'}
+        ssl_count = []
+
+        print("starting active custom ssl count...")
+    
+        for custom_ssl in zones_id:
+            url = f"{self.host}{self.api_url}/zones/{custom_ssl}/ssl/certificate_packs"
+            r = requests.get(url, headers=headers)
+            result = r.json()
+            certs = [i['type'] for i in result['result'] if i['type'] == "legacy_custom" or i['type'] == "sni_custom" and i['status'] == 'active']
+            ssl_count.append(len(certs))
+
+        df = pd.read_csv('io/zone_ids.csv')
+        df['active_custom_ssl_count'] = ssl_count
+        df.to_csv('main.csv', index=False, mode="w")
+
+    def custom_rate_limit(self):
+        # if not self._auth:
+        #     self._verify_token()
+
+        print("starting rate limit...")
+
+        zones_id = self.zones()
+        headers = {'Accept': self.content_type, 'Authorization': f'Bearer {self._token}'}
+        rate_count = []
+
+        for custom_rate in zones_id:
+            url = f"{self.host}{self.api_url}/zones/{custom_rate}/rate_limits"
+            r = requests.get(url, headers=headers)
+            result = r.json()
+            rate_limiting = [i['disabled'] for i in result['result'] if i['disabled'] == False]
+            rate_count.append(len(rate_limiting))
+
+        df = pd.read_csv("./main.csv")
+        df['rate_limit_on'] = rate_count
+        df.to_csv('main.csv', index=False, mode="w")
+      
     def dns_zones(self):
         # if not self._auth:
         #     self._verify_token()
@@ -153,12 +197,14 @@ class Get(Cloudflare):
         headers = {'Accept': self.content_type, 'Authorization': f'Bearer {self._token}'}
         dns_list = []
 
+        print("starting DNS zones...")
+
         for zone in zones_id:
             url = f'{self.host}{self.api_url}/zones/{zone}/dns_records'
             r = requests.get(url, headers=headers)
             result = r.json()
             dns_list.append([i['name'] for i in result['result']])
 
-        df = pd.read_csv('./output.csv')
+        df = pd.read_csv('./main.csv')
         df['dns_zones'] = dns_list
-        df.to_csv('./output.csv', index=False, mode="w")
+        df.to_csv('./main.csv', index=False, mode="w")
